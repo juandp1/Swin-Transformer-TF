@@ -17,8 +17,8 @@ class Mlp(tf.keras.layers.Layer):
         super().__init__()
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
-        self.fc1 = Dense(hidden_features, name=f'{prefix}/mlp/fc1')
-        self.fc2 = Dense(out_features, name=f'{prefix}/mlp/fc2')
+        self.fc1 = Dense(hidden_features, name=f'{prefix}_mlp_fc1')
+        self.fc2 = Dense(out_features, name=f'{prefix}_mlp_fc2')
         self.drop = Dropout(drop)
 
     def call(self, x):
@@ -58,30 +58,32 @@ class WindowAttention(tf.keras.layers.Layer):
         self.prefix = prefix
 
         self.qkv = Dense(dim * 3, use_bias=qkv_bias,
-                         name=f'{self.prefix}/attn/qkv')
+                         name=f'{self.prefix}_attn_qkv')
         self.attn_drop = Dropout(attn_drop)
-        self.proj = Dense(dim, name=f'{self.prefix}/attn/proj')
+        self.proj = Dense(dim, name=f'{self.prefix}_attn_proj')
         self.proj_drop = Dropout(proj_drop)
 
     def build(self, input_shape):
-        self.relative_position_bias_table = self.add_weight(f'{self.prefix}/attn/relative_position_bias_table',
-                                                            shape=(
-                                                                (2 * self.window_size[0] - 1) * (2 * self.window_size[1] - 1), self.num_heads),
-                                                            initializer=tf.initializers.Zeros(), trainable=True)
+        self.relative_position_bias_table = self.add_weight(
+            f'{self.prefix}_attn_relative_position_bias_table',
+            shape=[(2 * self.window_size[0] - 1) * (2 * self.window_size[1] - 1), self.num_heads],
+            initializer=tf.initializers.Zeros(), trainable=True)
 
         coords_h = np.arange(self.window_size[0])
         coords_w = np.arange(self.window_size[1])
         coords = np.stack(np.meshgrid(coords_h, coords_w, indexing='ij'))
         coords_flatten = coords.reshape(2, -1)
-        relative_coords = coords_flatten[:, :,
-                                         None] - coords_flatten[:, None, :]
+        relative_coords = coords_flatten[:, :, None] - coords_flatten[:, None, :]
         relative_coords = relative_coords.transpose([1, 2, 0])
         relative_coords[:, :, 0] += self.window_size[0] - 1
         relative_coords[:, :, 1] += self.window_size[1] - 1
         relative_coords[:, :, 0] *= 2 * self.window_size[1] - 1
         relative_position_index = relative_coords.sum(-1).astype(np.int64)
-        self.relative_position_index = tf.Variable(initial_value=tf.convert_to_tensor(
-            relative_position_index), trainable=False, name=f'{self.prefix}/attn/relative_position_index')
+        self.relative_position_index = tf.Variable(
+            initial_value=tf.convert_to_tensor(relative_position_index),
+            trainable=False,
+            name=f'{self.prefix}_attn_relative_position_index'
+        )
         self.built = True
 
     def call(self, x, mask=None):
@@ -251,8 +253,8 @@ class PatchMerging(tf.keras.layers.Layer):
         self.input_resolution = input_resolution
         self.dim = dim
         self.reduction = Dense(2 * dim, use_bias=False,
-                               name=f'{prefix}/downsample/reduction')
-        self.norm = norm_layer(epsilon=1e-5, name=f'{prefix}/downsample/norm')
+                               name=f'{prefix}_downsample_reduction')
+        self.norm = norm_layer(epsilon=1e-5, name=f'{prefix}_downsample_norm')
 
     def call(self, x):
         H, W = self.input_resolution
