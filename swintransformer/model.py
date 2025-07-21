@@ -64,27 +64,30 @@ class WindowAttention(tf.keras.layers.Layer):
         self.proj_drop = Dropout(proj_drop)
 
     def build(self, input_shape):
-        self.relative_position_bias_table = self.add_weight(
-            f'{self.prefix}_attn_relative_position_bias_table',
-            shape=[(2 * self.window_size[0] - 1) * (2 * self.window_size[1] - 1), self.num_heads],
-            initializer=tf.initializers.Zeros(), trainable=True)
+    # Sé explícito con los nombres de los argumentos: 'name' y 'shape'
+    self.relative_position_bias_table = self.add_weight(
+        name=f'{self.prefix}_attn_relative_position_bias_table',
+        shape=((2 * self.window_size[0] - 1) * (2 * self.window_size[1] - 1), self.num_heads),
+        initializer=tf.initializers.Zeros(),
+        trainable=True
+    )
 
-        coords_h = np.arange(self.window_size[0])
-        coords_w = np.arange(self.window_size[1])
-        coords = np.stack(np.meshgrid(coords_h, coords_w, indexing='ij'))
-        coords_flatten = coords.reshape(2, -1)
-        relative_coords = coords_flatten[:, :, None] - coords_flatten[:, None, :]
-        relative_coords = relative_coords.transpose([1, 2, 0])
-        relative_coords[:, :, 0] += self.window_size[0] - 1
-        relative_coords[:, :, 1] += self.window_size[1] - 1
-        relative_coords[:, :, 0] *= 2 * self.window_size[1] - 1
-        relative_position_index = relative_coords.sum(-1).astype(np.int64)
-        self.relative_position_index = tf.Variable(
-            initial_value=tf.convert_to_tensor(relative_position_index),
-            trainable=False,
-            name=f'{self.prefix}_attn_relative_position_index'
-        )
-        self.built = True
+    coords_h = np.arange(self.window_size[0])
+    coords_w = np.arange(self.window_size[1])
+    coords = np.stack(np.meshgrid(coords_h, coords_w, indexing='ij'))
+    coords_flatten = coords.reshape(2, -1)
+    relative_coords = coords_flatten[:, :, None] - coords_flatten[:, None, :]
+    relative_coords = relative_coords.transpose([1, 2, 0])
+    relative_coords[:, :, 0] += self.window_size[0] - 1
+    relative_coords[:, :, 1] += self.window_size[1] - 1
+    relative_coords[:, :, 0] *= 2 * self.window_size[1] - 1
+    relative_position_index = relative_coords.sum(-1).astype(np.int64)
+    self.relative_position_index = tf.Variable(
+        initial_value=tf.convert_to_tensor(relative_position_index),
+        trainable=False,
+        name=f'{self.prefix}_attn_relative_position_index'
+    )
+    self.built = True
 
     def call(self, x, mask=None):
         B_, N, C = x.get_shape().as_list()
