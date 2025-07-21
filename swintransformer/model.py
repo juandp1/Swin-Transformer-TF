@@ -81,7 +81,8 @@ class WindowAttention(tf.keras.layers.Layer):
         relative_coords[:, :, 0] += self.window_size[0] - 1
         relative_coords[:, :, 1] += self.window_size[1] - 1
         relative_coords[:, :, 0] *= 2 * self.window_size[1] - 1
-        relative_position_index = relative_coords.sum(-1).astype(np.int64)
+        
+        relative_position_index_value = relative_coords.sum(-1).astype(np.int64)
         self.relative_position_index = self.add_weight(
             name=f'{self.prefix}_attn_relative_position_index',
             shape=relative_position_index_value.shape,
