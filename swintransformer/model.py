@@ -82,11 +82,7 @@ class WindowAttention(tf.keras.layers.Layer):
         relative_coords[:, :, 1] += self.window_size[1] - 1
         relative_coords[:, :, 0] *= 2 * self.window_size[1] - 1
         relative_position_index = relative_coords.sum(-1).astype(np.int64)
-        self.relative_position_index = tf.Variable(
-            initial_value=tf.convert_to_tensor(relative_position_index),
-            trainable=False,
-            name=f'{self.prefix}_attn_relative_position_index'
-        )
+        self.relative_position_index = tf.convert_to_tensor(relative_position_index)
         self.built = True
 
     def call(self, x, mask=None):
@@ -199,8 +195,7 @@ class SwinTransformerBlock(tf.keras.layers.Layer):
                 mask_windows, axis=1) - tf.expand_dims(mask_windows, axis=2)
             attn_mask = tf.where(attn_mask != 0, -100.0, attn_mask)
             attn_mask = tf.where(attn_mask == 0, 0.0, attn_mask)
-            self.attn_mask = tf.Variable(
-                initial_value=attn_mask, trainable=False, name=f'{self.prefix}_attn_mask')
+            self.attn_mask = attn_mask
         else:
             self.attn_mask = None
 
