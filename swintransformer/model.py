@@ -82,7 +82,13 @@ class WindowAttention(tf.keras.layers.Layer):
         relative_coords[:, :, 1] += self.window_size[1] - 1
         relative_coords[:, :, 0] *= 2 * self.window_size[1] - 1
         relative_position_index = relative_coords.sum(-1).astype(np.int64)
-        self.relative_position_index = tf.convert_to_tensor(relative_position_index)
+        self.relative_position_index = self.add_weight(
+            name=f'{self.prefix}_attn_relative_position_index',
+            shape=relative_position_index_value.shape,
+            dtype=tf.int64,
+            initializer=tf.constant_initializer(relative_position_index_value),
+            trainable=False
+        )
         self.built = True
 
     def call(self, x, mask=None):
