@@ -198,10 +198,10 @@ class SwinTransformerBlock(tf.keras.layers.Layer):
             mask_windows = window_partition(img_mask, self.window_size)
             mask_windows = tf.reshape(
                 mask_windows, shape=[-1, self.window_size * self.window_size])
-            attn_mask = tf.expand_dims(
-                mask_windows, axis=1) - tf.expand_dims(mask_windows, axis=2)
-            attn_mask = tf.where(attn_mask != 0, -100.0, attn_mask)
-            attn_mask = tf.where(attn_mask == 0, 0.0, attn_mask)
+            attn_mask_value = tf.expand_dims(
+            mask_windows, axis=1) - tf.expand_dims(mask_windows, axis=2)
+            attn_mask_value = tf.where(attn_mask_value != 0, -100.0, attn_mask_value)
+            attn_mask_value = tf.where(attn_mask_value == 0, 0.0, attn_mask_value)
             self.attn_mask = self.add_weight(
                 name=f'{self.prefix}_attn_mask',
                 shape=attn_mask_value.shape,
