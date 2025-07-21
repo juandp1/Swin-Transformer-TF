@@ -202,7 +202,13 @@ class SwinTransformerBlock(tf.keras.layers.Layer):
                 mask_windows, axis=1) - tf.expand_dims(mask_windows, axis=2)
             attn_mask = tf.where(attn_mask != 0, -100.0, attn_mask)
             attn_mask = tf.where(attn_mask == 0, 0.0, attn_mask)
-            self.attn_mask = attn_mask
+            self.attn_mask = self.add_weight(
+                name=f'{self.prefix}_attn_mask',
+                shape=attn_mask_value.shape,
+                dtype=tf.float32,
+                initializer=tf.constant_initializer(attn_mask_value),
+                trainable=False
+            )
         else:
             self.attn_mask = None
 
