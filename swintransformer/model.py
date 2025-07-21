@@ -174,7 +174,7 @@ class SwinTransformerBlock(tf.keras.layers.Layer):
     def build(self, input_shape):
         if self.shift_size > 0:
             H, W = self.input_resolution
-            img_mask = np.zeros([1, H, W, 1])
+            img_mask = np.zeros([1, H, W, 1], dtype=np.float32)
             h_slices = (slice(0, -self.window_size),
                         slice(-self.window_size, -self.shift_size),
                         slice(-self.shift_size, None))
