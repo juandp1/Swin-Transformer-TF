@@ -109,9 +109,12 @@ class WindowAttention(tf.keras.layers.Layer):
         attn = attn + tf.expand_dims(relative_position_bias, axis=0)
 
         if mask is not None:
-            nW = mask.get_shape()[0]  # tf.shape(mask)[0]
-            attn = tf.reshape(attn, shape=[-1, nW, self.num_heads, N, N]) + tf.cast(
-                tf.expand_dims(tf.expand_dims(mask, axis=1), axis=0), attn.dtype)
+            nW = mask.get_shape()[0]
+            # Cambio clave: usar tf.add para mayor robustez con tensores simbólicos
+            attn = tf.reshape(attn, shape=[-1, nW, self.num_heads, N, N])
+            mask_expanded = tf.expand_dims(tf.expand_dims(mask, axis=1), axis=0)
+            attn = tf.add(attn, tf.cast(mask_expanded, attn.dtype))
+
             attn = tf.reshape(attn, shape=[-1, self.num_heads, N, N])
             attn = tf.nn.softmax(attn, axis=-1)
         else:
@@ -177,8 +180,9 @@ class SwinTransformerBlock(tf.keras.layers.Layer):
         mlp_hidden_dim = int(dim * mlp_ratio)
         self.mlp = Mlp(in_features=dim, hidden_features=mlp_hidden_dim,
                        drop=drop, prefix=self.prefix)
-
-    def build(self, input_shape):
+        
+        # Se mueve la lógica de la máscara al método `call`.
+        # El método build ya no es estrictamente necesario aquí si no hay más pesos que crear.
         if self.shift_size > 0:
             H, W = self.input_resolution
             img_mask = np.zeros([1, H, W, 1], dtype=np.float32)
@@ -194,25 +198,18 @@ class SwinTransformerBlock(tf.keras.layers.Layer):
                     img_mask[:, h, w, :] = cnt
                     cnt += 1
 
-            img_mask = tf.convert_to_tensor(img_mask)
             mask_windows = window_partition(img_mask, self.window_size)
-            mask_windows = tf.reshape(
-                mask_windows, shape=[-1, self.window_size * self.window_size])
-            attn_mask_value = tf.expand_dims(
-            mask_windows, axis=1) - tf.expand_dims(mask_windows, axis=2)
-            attn_mask_value = tf.where(attn_mask_value != 0, -100.0, attn_mask_value)
-            attn_mask_value = tf.where(attn_mask_value == 0, 0.0, attn_mask_value)
-            self.attn_mask = self.add_weight(
-                name=f'{self.prefix}_attn_mask',
-                shape=attn_mask_value.shape,
-                dtype=tf.float32,
-                initializer=tf.constant_initializer(attn_mask_value),
-                trainable=False
-            )
+            mask_windows = tf.reshape(mask_windows, shape=[-1, self.window_size * self.window_size])
+            attn_mask = tf.expand_dims(mask_windows, axis=1) - tf.expand_dims(mask_windows, axis=2)
+            # En lugar de -100.0, usamos un negativo muy grande para la estabilidad numérica.
+            self.attn_mask = tf.where(attn_mask != 0, -1e9, attn_mask)
+            self.attn_mask = tf.where(attn_mask == 0, 0.0, self.attn_mask)
         else:
             self.attn_mask = None
 
-        self.built = True
+    # El método build se elimina o se deja vacío si no se usa.
+    # def build(self, input_shape):
+    #     ...
 
     def call(self, x):
         H, W = self.input_resolution
@@ -236,6 +233,7 @@ class SwinTransformerBlock(tf.keras.layers.Layer):
             x_windows, shape=[-1, self.window_size * self.window_size, C])
 
         # W-MSA/SW-MSA
+        # La máscara ahora se pasa directamente desde el atributo de la instancia
         attn_windows = self.attn(x_windows, mask=self.attn_mask)
 
         # merge windows
